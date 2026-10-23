@@ -1,0 +1,93 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate QR Code - AttendEase</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <nav class="navbar">
+        <h2>AttendEase</h2>
+
+        <div>
+            <a href="/">Dashboard</a>
+            <a href="/register">Register Student</a>
+            <a href="/students">Students</a>
+            <a href="/courses">Courses</a>
+            <a href="/attendance">Attendance</a>
+            <a href="/generate_qr">QR Attendance</a>
+        </div>
+    </nav>
+
+    <main class="container">
+
+        <section class="welcome">
+            <h1>QR-Code Attendance</h1>
+            <p>Select a course to prepare its attendance QR code.</p>
+        </section>
+
+        <section class="panel">
+            <h2>Select Course</h2>
+
+           
+{% if message %}
+    <p><strong>{{ message }}</strong></p>
+{% endif %}
+
+{% if qr_image %}
+    <h3>Scan this QR code to mark attendance</h3>
+
+    <img
+        src="{{ url_for('static', filename='qrcodes/' + qr_image) }}"
+        alt="Attendance QR Code"
+        width="250"
+    >
+
+    <p>QR code expires in 15 minutes.</p>
+
+    {% if qr_link %}
+        <p>
+            Student check-in link:
+            <a href="{{ qr_link }}">{{ qr_link }}</a>
+        </p>
+    {% endif %}
+{% endif %}
+ 
+
+            {% if courses %}
+                <form action="/generate_qr" method="POST">
+                    <div class="form-group">
+                        <label for="course_id">Choose a course</label>
+
+                        <select id="course_id"
+                                name="course_id"
+                                required>
+                            <option value="">Select a course</option>
+
+                            {% for course in courses %}
+                                <option value="{{ course['id'] }}">
+                                    {{ course['course_code'] }} -
+                                    {{ course['course_title'] }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <button type="submit" class="button">
+                        Select Course
+                    </button>
+                </form>
+            {% else %}
+                <p>No courses found. Please add a course first.</p>
+            {% endif %}
+        </section>
+
+    </main>
+
+</body>
+</html>

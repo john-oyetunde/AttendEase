@@ -1,0 +1,47 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Check-in - AttendEase</title>
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <main class="container">
+        <section class="welcome">
+            <h1>AttendEase</h1>
+            <h2>Student Attendance Check-in</h2>
+            <p>Enter your matric number to record your attendance.</p>
+        </section>
+
+        <section class="panel">
+            {% if message %}
+                <p><strong>{{ message }}</strong></p>
+            {% endif %}
+
+            {% if valid_session %}
+                <form method="POST">
+                    <div class="form-group">
+                        <label for="matric_number">Matric Number</label>
+                        <input
+                            type="text"
+                            id="matric_number"
+                            name="matric_number"
+                            placeholder="Enter your matric number"
+                            required
+                        >
+                    </div>
+
+                    <button type="submit" class="button">
+                        Mark Attendance
+                    </button>
+                </form>
+            {% endif %}
+        </section>
+    </main>
+
+</body>
+</html>

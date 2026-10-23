@@ -1,0 +1,60 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <nav class="navbar">
+        <h2>AttendEase</h2>
+
+        <div>
+            <a href="/">Dashboard</a>
+            <a href="/register">Register Student</a>
+            <a href="/students">Students</a>
+            <a href="/courses">Courses</a>
+            <a href="/attendance">Attendance</a>
+            <a href="/generate_qr">QR Code Attendance</a>
+        </div>
+    </nav>
+
+    <main class="container">
+
+        <section class="welcome">
+            <h1>Student Attendance Dashboard</h1>
+            <p>Welcome! Manage student registration and attendance from here.</p>
+        </section>
+
+        <section class="cards">
+            <div class="card">
+                <h3>Registered Students</h3>
+                <p>{{ total_students }}</p>
+            </div>
+
+            <div class="card">
+    <h3>Courses</h3>
+    <p>{{ total_courses }}</p>
+</div>
+
+            <div class="card">
+                <h3>Attendance Records</h3>
+<p>{{ total_attendance }}</p>
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2>Quick Actions</h2>
+            <p>Choose what you want to do next.</p>
+
+            <a class="button" href="/register">Register a Student</a>
+            <a class="button" href="/students">View Students</a>
+        </section>
+
+    </main>
+
+</body>
+</html>

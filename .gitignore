@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+attendance.db
+attendance_backup.db
+app_backup.py
+*.sqlite
+*.sqlite3
+qrcodes/
