@@ -393,7 +393,7 @@ def generate_qr():
             image_name = f"session_{session_id}.png"
             image_path = os.path.join("static", "qrcodes", image_name)
 
-            qr_link = "http://10.19.0.105:5000/checkin/" + token
+            qr_link = "https://attendease-9fi6.onrender.com/checkin/" + token
 
             qr = qrcode.make(qr_link)
             qr.save(image_path)
