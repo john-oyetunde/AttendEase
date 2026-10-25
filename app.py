@@ -1,6 +1,9 @@
 
 from flask import Flask, render_template, request
 import sqlite3
+import os
+import psycopg2
+import psycopg2.extras
 
 from datetime import datetime
 
@@ -10,77 +13,166 @@ import secrets
 
 app = Flask(__name__)
 
+USE_POSTGRES = bool(os.environ.get("DATABASE_URL"))
 
-# Connect to the database
+
+# Database connection: SQLite locally, PostgreSQL on Render
+class DatabaseCursor:
+    def __init__(self, cursor, lastrowid=None):
+        self.cursor = cursor
+        self.lastrowid = lastrowid
+
+    def fetchone(self):
+        return self.cursor.fetchone()
+
+    def fetchall(self):
+        return self.cursor.fetchall()
+
+
+class DatabaseConnection:
+    def __init__(self, connection, use_postgres):
+        self.connection = connection
+        self.use_postgres = use_postgres
+
+    def execute(self, query, parameters=()):
+        if not self.use_postgres:
+            return self.connection.execute(query, parameters)
+
+        cursor = self.connection.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        query = query.replace("?", "%s")
+        capture_id = (
+            query.lstrip().upper().startswith("INSERT INTO ATTENDANCE_SESSIONS")
+            and "RETURNING" not in query.upper()
+        )
+        if capture_id:
+            query = query.rstrip().rstrip(";") + " RETURNING id"
+
+        try:
+            cursor.execute(query, parameters)
+            inserted_id = None
+            if capture_id:
+                row = cursor.fetchone()
+                inserted_id = row[0] if row else None
+            return DatabaseCursor(cursor, inserted_id)
+        except psycopg2.IntegrityError as error:
+            self.connection.rollback()
+            raise sqlite3.IntegrityError(str(error)) from error
+
+    def commit(self):
+        self.connection.commit()
+
+    def close(self):
+        self.connection.close()
+
+
 def get_db_connection():
+    database_url = os.environ.get("DATABASE_URL")
+
+    if database_url:
+        connection = psycopg2.connect(database_url)
+        return DatabaseConnection(connection, use_postgres=True)
+
     connection = sqlite3.connect("attendance.db")
     connection.row_factory = sqlite3.Row
-    return connection
+    return DatabaseConnection(connection, use_postgres=False)
 
 
-
-# Create the students and courses tables
+# Create all four tables in the selected database
 def create_table():
     connection = get_db_connection()
 
-    # Students table
-    connection.execute("""
-        CREATE TABLE IF NOT EXISTS students (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            full_name TEXT NOT NULL,
-            matric_number TEXT NOT NULL UNIQUE,
-            department TEXT NOT NULL,
-            level TEXT NOT NULL
-        )
-    """)
+    if USE_POSTGRES:
+        table_statements = [
+            """
+            CREATE TABLE IF NOT EXISTS students (
+                id SERIAL PRIMARY KEY,
+                full_name TEXT NOT NULL,
+                matric_number TEXT NOT NULL UNIQUE,
+                department TEXT NOT NULL,
+                level TEXT NOT NULL
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS courses (
+                id SERIAL PRIMARY KEY,
+                course_code TEXT NOT NULL UNIQUE,
+                course_title TEXT NOT NULL,
+                lecturer TEXT NOT NULL,
+                schedule TEXT NOT NULL
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS attendance (
+                id SERIAL PRIMARY KEY,
+                student_id INTEGER NOT NULL REFERENCES students(id),
+                course_id INTEGER NOT NULL REFERENCES courses(id),
+                attendance_date TEXT NOT NULL,
+                attendance_time TEXT NOT NULL,
+                UNIQUE (student_id, course_id, attendance_date)
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS attendance_sessions (
+                id SERIAL PRIMARY KEY,
+                course_id INTEGER NOT NULL REFERENCES courses(id),
+                token TEXT NOT NULL UNIQUE,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                active INTEGER NOT NULL DEFAULT 1
+            )
+            """
+        ]
+    else:
+        table_statements = [
+            """
+            CREATE TABLE IF NOT EXISTS students (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                full_name TEXT NOT NULL,
+                matric_number TEXT NOT NULL UNIQUE,
+                department TEXT NOT NULL,
+                level TEXT NOT NULL
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS courses (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                course_code TEXT NOT NULL UNIQUE,
+                course_title TEXT NOT NULL,
+                lecturer TEXT NOT NULL,
+                schedule TEXT NOT NULL
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS attendance (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                student_id INTEGER NOT NULL,
+                course_id INTEGER NOT NULL,
+                attendance_date TEXT NOT NULL,
+                attendance_time TEXT NOT NULL,
+                FOREIGN KEY (student_id) REFERENCES students(id),
+                FOREIGN KEY (course_id) REFERENCES courses(id),
+                UNIQUE (student_id, course_id, attendance_date)
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS attendance_sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                course_id INTEGER NOT NULL,
+                token TEXT NOT NULL UNIQUE,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                active INTEGER NOT NULL DEFAULT 1,
+                FOREIGN KEY (course_id) REFERENCES courses(id)
+            )
+            """
+        ]
 
-    # Courses table
-    connection.execute("""
-        CREATE TABLE IF NOT EXISTS courses (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            course_code TEXT NOT NULL UNIQUE,
-            course_title TEXT NOT NULL,
-            lecturer TEXT NOT NULL,
-            schedule TEXT NOT NULL
-        )
-    """)
-    
-    # Attendance records table
-    connection.execute("""
-        CREATE TABLE IF NOT EXISTS attendance (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            student_id INTEGER NOT NULL,
-            course_id INTEGER NOT NULL,
-            attendance_date TEXT NOT NULL,
-            attendance_time TEXT NOT NULL,
-
-            FOREIGN KEY (student_id) REFERENCES students(id),
-            FOREIGN KEY (course_id) REFERENCES courses(id),
-
-            UNIQUE (student_id, course_id, attendance_date)
-        )
-    """)
-
- 
-    # QR attendance sessions table
-    connection.execute("""
-        CREATE TABLE IF NOT EXISTS attendance_sessions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            course_id INTEGER NOT NULL,
-            token TEXT NOT NULL UNIQUE,
-            created_at TEXT NOT NULL,
-            expires_at TEXT NOT NULL,
-            active INTEGER NOT NULL DEFAULT 1,
-            FOREIGN KEY (course_id) REFERENCES courses(id)
-        )
-    """)
-   
-
-
-    connection.commit()
-    connection.close()
-
-
+    try:
+        for statement in table_statements:
+            connection.execute(statement)
+        connection.commit()
+    finally:
+        connection.close()
 
 
 # Homepage and dashboard
