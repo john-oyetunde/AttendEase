@@ -7,6 +7,8 @@ import psycopg2.extras
 
 from datetime import datetime
 
+from zoneinfo import ZoneInfo
+
 import qrcode
 
 import secrets
@@ -367,7 +369,7 @@ def attendance():
             message = "Please select a valid student and course."
 
         else:
-            now = datetime.now()
+            now = datetime.now(ZoneInfo("Africa/Lagos"))
             attendance_date = now.strftime("%Y-%m-%d")
             attendance_time = now.strftime("%H:%M:%S")
 
