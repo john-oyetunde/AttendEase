@@ -459,7 +459,7 @@ def generate_qr():
         if course is None:
             message = "Please select a valid course."
         else:
-            now = datetime.now()
+            now = datetime.now(ZoneInfo("Africa/Lagos"))
             token = secrets.token_urlsafe(24)
             expires_at = now + timedelta(minutes=15)
 
@@ -530,7 +530,7 @@ def checkin(token):
 
         if session is None or session["active"] != 1:
             message = "This QR code is invalid or no longer active."
-        elif datetime.fromisoformat(session["expires_at"]) < datetime.now():
+        elif datetime.fromisoformat(session["expires_at"]) < datetime.now(ZoneInfo("Africa/Lagos")):
             connection.execute("""
                 UPDATE attendance_sessions
                 SET active = 0
@@ -561,7 +561,7 @@ def checkin(token):
                 if student is None:
                     message = "Student not found. Check your matric number."
                 else:
-                    now = datetime.now()
+                    now = datetime.now(ZoneInfo("Africa/Lagos"))
 
                     try:
                         connection.execute("""
